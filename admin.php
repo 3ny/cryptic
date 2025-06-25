@@ -114,6 +114,39 @@
             margin-top: 0;
             color: #856404;
         }
+        .indicator-label-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between; /* Pushes label and button apart */
+            margin-bottom: 5px; /* Space below the label/button line */
+        }
+        .indicator-label-group label {
+            margin-bottom: 0; /* Override default label margin */
+        }
+        .indicator-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px; /* Space between indicator inputs */
+        }
+        .indicator-group input {
+            flex: 1 1 calc(50% - 10px); /* Two columns, adjust for gap */
+            min-width: 150px; /* Minimum width for each input */
+        }
+        /* For 5 inputs, make them fit roughly 2-3 per line */
+        @media (min-width: 600px) {
+            .indicator-group input {
+                flex: 1 1 calc(33.33% - 10px); /* Three columns */
+            }
+        }
+        .add-indicator-btn {
+            background-color: #6c757d;
+            padding: 5px 10px;
+            font-size: 14px;
+            margin-right: 0; /* Remove default button margin */
+        }
+        .add-indicator-btn:hover {
+            background-color: #5a6268;
+        }
     </style>
 </head>
 <body>
@@ -142,17 +175,29 @@
                 <p>These fields are optional but can provide additional context for crossword-style clues:</p>
                 
                 <div class="form-group">
-                    <label for="definition">Definition:</label>
-                    <input type="text" 
-                           id="definition" 
-                           placeholder="The definition part of your clue (optional)">
-                </div>
-                
-                <div class="form-group">
                     <label for="wordplay">Wordplay:</label>
                     <input type="text" 
                            id="wordplay" 
-                           placeholder="The wordplay part of your clue (optional)">
+                           placeholder="The wordplay part of your clue">
+                </div>
+                
+                <div class="form-group">
+                    <label for="fodder">Fodder:</label>
+                    <input type="text" 
+                           id="fodder" 
+                           placeholder="The fodder part of your clue">
+                </div>
+
+                <div class="form-group">
+                    <div class="indicator-label-group">
+                        <label>Indicators:</label>
+                        <button type="button" class="add-indicator-btn" onclick="addIndicatorField()">+ Add Indicator</button>
+                    </div>
+                    <div class="indicator-group" id="indicator-group">
+                        <input type="text" id="indicator1" placeholder="Indicator 1">
+                        <input type="text" id="indicator2" placeholder="Indicator 2">
+                        <input type="text" id="indicator3" placeholder="Indicator 3">
+                    </div>
                 </div>
             </div>
             
@@ -183,13 +228,37 @@
     </div>
 
     <script>
+        // Function to add a new indicator field
+        function addIndicatorField() {
+            const indicatorGroup = document.getElementById('indicator-group');
+            const currentCount = indicatorGroup.querySelectorAll('input[id^="indicator"]').length;
+            const newIdNum = currentCount + 1;
+
+            const newInput = document.createElement('input');
+            newInput.type = 'text';
+            newInput.id = 'indicator' + newIdNum;
+            newInput.placeholder = 'Indicator ' + newIdNum;
+            
+            indicatorGroup.appendChild(newInput);
+        }
+
         function generateGame() {
             // Get form values
             const clue = document.getElementById('clue').value.trim();
             const answer = document.getElementById('answer').value.trim();
-            const definition = document.getElementById('definition').value.trim();
             const wordplay = document.getElementById('wordplay').value.trim();
+            const fodder = document.getElementById('fodder').value.trim();
             
+            // Collect indicators dynamically
+            const indicators = [];
+            const indicatorInputs = document.querySelectorAll('#indicator-group input[id^="indicator"]');
+            indicatorInputs.forEach(input => {
+                const indicatorValue = input.value.trim();
+                if (indicatorValue) {
+                    indicators.push(indicatorValue);
+                }
+            });
+
             // Validate required fields
             if (!clue || !answer) {
                 alert('Please fill in both the clue and answer fields.');
@@ -203,11 +272,14 @@
             };
             
             // Add optional fields if they have values
-            if (definition) {
-                gameData.definition = definition;
-            }
             if (wordplay) {
                 gameData.wordplay = wordplay;
+            }
+            if (fodder) {
+                gameData.fodder = fodder;
+            }
+            if (indicators.length > 0) {
+                gameData.indicators = indicators;
             }
             
             // Convert to JSON string
@@ -218,7 +290,7 @@
             
             // Get current page URL without parameters
             const currentUrl = window.location.origin + window.location.pathname;
-            const gamePageUrl = currentUrl.replace('admin.php', '');
+            const gamePageUrl = currentUrl.replace('admin.php', ''); 
             
             // Generate the full game URL
             const fullGameUrl = gamePageUrl + '?data=' + base64Data;
@@ -229,11 +301,14 @@
             
             // Update optional preview
             let optionalHtml = '';
-            if (definition) {
-                optionalHtml += '<p><strong>Definition:</strong> ' + escapeHtml(definition) + '</p>';
-            }
             if (wordplay) {
                 optionalHtml += '<p><strong>Wordplay:</strong> ' + escapeHtml(wordplay) + '</p>';
+            }
+            if (fodder) {
+                optionalHtml += '<p><strong>Fodder:</strong> ' + escapeHtml(fodder) + '</p>';
+            }
+            if (indicators.length > 0) {
+                optionalHtml += '<p><strong>Indicators:</strong> ' + escapeHtml(indicators.join(', ')) + '</p>';
             }
             document.getElementById('previewOptional').innerHTML = optionalHtml;
             
@@ -275,6 +350,13 @@
             if (confirm('Are you sure you want to clear all fields?')) {
                 document.getElementById('gameForm').reset();
                 document.getElementById('resultSection').classList.add('hidden');
+                
+                // Remove all dynamically added indicator fields, keeping only the initial 3
+                const indicatorGroup = document.getElementById('indicator-group');
+                let currentIndicators = indicatorGroup.querySelectorAll('input[id^="indicator"]');
+                for (let i = currentIndicators.length - 1; i >= 3; i--) { // Start from the last and go down to the 4th
+                    indicatorGroup.removeChild(currentIndicators[i]);
+                }
             }
         }
         
@@ -295,11 +377,28 @@
         function loadExample() {
             document.getElementById('clue').value = 'I am tall when I\'m young and short when I\'m old. What am I?';
             document.getElementById('answer').value = 'candle';
-            document.getElementById('definition').value = 'A source of light';
             document.getElementById('wordplay').value = 'Burns at both ends';
+            document.getElementById('fodder').value = 'wax';
+            
+            // Clear existing dynamic indicators before loading example
+            const indicatorGroup = document.getElementById('indicator-group');
+            let currentIndicators = indicatorGroup.querySelectorAll('input[id^="indicator"]');
+            for (let i = currentIndicators.length - 1; i >= 3; i--) {
+                indicatorGroup.removeChild(currentIndicators[i]);
+            }
+
+            // Populate initial indicators
+            document.getElementById('indicator1').value = 'tall';
+            document.getElementById('indicator2').value = 'short';
+            document.getElementById('indicator3').value = 'old';
+
+            // Add more fields if needed for the example (e.g., if you had 5 in the example)
+            // For this example, we only have 3, so no extra fields are added.
+            // If you wanted to load 5 indicators, you'd call addIndicatorField() twice here
+            // and then set indicator4 and indicator5 values.
         }
         
-        // Add example button
+        // Add example button on load
         window.onload = function() {
             const form = document.getElementById('gameForm');
             const exampleBtn = document.createElement('button');
@@ -310,7 +409,13 @@
             exampleBtn.onmouseover = function() { this.style.backgroundColor = '#138496'; };
             exampleBtn.onmouseout = function() { this.style.backgroundColor = '#17a2b8'; };
             
-            form.appendChild(exampleBtn);
+            // Find a good place to insert the button, e.g., before the generate button
+            const generateButton = document.querySelector('button[onclick="generateGame()"]');
+            if (generateButton) {
+                generateButton.parentNode.insertBefore(exampleBtn, generateButton);
+            } else {
+                form.appendChild(exampleBtn); // Fallback
+            }
         };
     </script>
 </body>
