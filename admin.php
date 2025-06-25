@@ -175,10 +175,10 @@
                 <p>These fields are optional but can provide additional context for crossword-style clues:</p>
                 
                 <div class="form-group">
-                    <label for="wordplay">Wordplay:</label>
+                    <label for="definition">Definition:</label>
                     <input type="text" 
-                           id="wordplay" 
-                           placeholder="The wordplay part of your clue">
+                           id="definition" 
+                           placeholder="The definition part of your clue">
                 </div>
                 
                 <div class="form-group">
@@ -246,8 +246,8 @@
             // Get form values
             const clue = document.getElementById('clue').value.trim();
             const answer = document.getElementById('answer').value.trim();
-            const wordplay = document.getElementById('wordplay').value.trim();
-            const fodder = document.getElementById('fodder').value.trim();
+            const definition = document.getElementById('definition').value.trim(); // Changed from wordplay
+            const fodder = document.getElementById('fodder').value.trim();     
             
             // Collect indicators dynamically
             const indicators = [];
@@ -272,8 +272,8 @@
             };
             
             // Add optional fields if they have values
-            if (wordplay) {
-                gameData.wordplay = wordplay;
+            if (definition) { // Changed from wordplay
+                gameData.definition = definition; // Changed from wordplay
             }
             if (fodder) {
                 gameData.fodder = fodder;
@@ -301,8 +301,8 @@
             
             // Update optional preview
             let optionalHtml = '';
-            if (wordplay) {
-                optionalHtml += '<p><strong>Wordplay:</strong> ' + escapeHtml(wordplay) + '</p>';
+            if (definition) { // Changed from wordplay
+                optionalHtml += '<p><strong>Definition:</strong> ' + escapeHtml(definition) + '</p>'; // Changed from wordplay
             }
             if (fodder) {
                 optionalHtml += '<p><strong>Fodder:</strong> ' + escapeHtml(fodder) + '</p>';
@@ -377,7 +377,7 @@
         function loadExample() {
             document.getElementById('clue').value = 'I am tall when I\'m young and short when I\'m old. What am I?';
             document.getElementById('answer').value = 'candle';
-            document.getElementById('wordplay').value = 'Burns at both ends';
+            document.getElementById('definition').value = 'A source of light (e.g., for a candle)'; // Changed from wordplay
             document.getElementById('fodder').value = 'wax';
             
             // Clear existing dynamic indicators before loading example
@@ -391,11 +391,6 @@
             document.getElementById('indicator1').value = 'tall';
             document.getElementById('indicator2').value = 'short';
             document.getElementById('indicator3').value = 'old';
-
-            // Add more fields if needed for the example (e.g., if you had 5 in the example)
-            // For this example, we only have 3, so no extra fields are added.
-            // If you wanted to load 5 indicators, you'd call addIndicatorField() twice here
-            // and then set indicator4 and indicator5 values.
         }
         
         // Add example button on load

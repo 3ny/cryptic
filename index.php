@@ -11,6 +11,11 @@ $userAnswer = '';
 $showResult = false;
 $triggerFlash = false; // Flag to trigger the flash effect
 
+// Initialize optional fields
+$definition = ''; // Changed from wordplay
+$fodder = '';
+$indicators = [];
+
 // Check if data parameter exists
 if (isset($_GET['data'])) {
     try {
@@ -35,6 +40,13 @@ if (isset($_GET['data'])) {
 
         $clue = htmlspecialchars($gameData['clue']);
         $correctAnswer = $gameData['answer'];
+
+        // Retrieve optional fields
+        $definition = isset($gameData['definition']) ? htmlspecialchars($gameData['definition']) : ''; // Changed from wordplay
+        $fodder = isset($gameData['fodder']) ? htmlspecialchars($gameData['fodder']) : '';
+        // Ensure indicators is an array, even if empty
+        $indicators = isset($gameData['indicators']) && is_array($gameData['indicators']) ? $gameData['indicators'] : [];
+
 
         // Create unique ID for this game data
         $gameId = md5($_GET['data']);
@@ -215,6 +227,44 @@ if (isset($_GET['data'])) {
          .hidden {
             display: none;
         }
+
+        /* Styles for Hints Section */
+        .hints-section {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f0f8ff; /* Light blue background for hints */
+            border-radius: 10px;
+            border: 1px solid #cceeff;
+            text-align: center; /* Center the buttons */
+        }
+        .hints-section h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        .hint-button {
+            background-color: #6c757d; /* Grey button */
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px; /* Space between buttons */
+        }
+        .hint-button:hover:not(:disabled) {
+            background-color: #5a6268;
+        }
+        .hint-display {
+            background-color: #e9f5ff; /* Lighter blue for hint content */
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            border: 1px dashed #aaddff;
+            text-align: left; /* Align text inside hint display */
+        }
+        .hint-display p {
+            margin: 0;
+        }
     </style>
 </head>
 <body>
@@ -247,6 +297,36 @@ if (isset($_GET['data'])) {
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
+
+            <?php
+            // Check if any optional hints exist to display the section
+            if (!empty($definition) || !empty($fodder) || !empty($indicators)): // Changed from wordplay
+            ?>
+            <div class="hints-section">
+                <h3>💡 Hints (Optional)</h3>
+                <?php if (!empty($definition)): // Changed from wordplay ?>
+                    <button type="button" class="hint-button" id="showDefinitionBtn" onclick="showHint('definition')">Show Definition</button> <!-- Changed from wordplay -->
+                    <div id="definitionHint" class="hint-display hidden"> <!-- Changed from wordplay -->
+                        <p><strong>Definition:</strong> <?php echo $definition; ?></p> <!-- Changed from wordplay -->
+                    </div>
+                <?php endif; ?>
+
+                <?php if (!empty($fodder)): ?>
+                    <button type="button" class="hint-button" id="showFodderBtn" onclick="showHint('fodder')">Show Fodder</button>
+                    <div id="fodderHint" class="hint-display hidden">
+                        <p><strong>Fodder:</strong> <?php echo $fodder; ?></p>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (!empty($indicators)): ?>
+                    <button type="button" class="hint-button" id="showIndicatorsBtn" onclick="showHint('indicators')">Show Indicators</button>
+                    <div id="indicatorsHint" class="hint-display hidden">
+                        <p><strong>Indicators:</strong> <?php echo htmlspecialchars(implode(', ', $indicators)); ?></p>
+                    </div>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+
 
             <?php if ($currentGame['solved']): ?>
                 <div class="result correct game-over">
@@ -301,7 +381,10 @@ if (isset($_GET['data'])) {
                 <p><strong>JSON Format:</strong></p>
                 <pre>{
   "clue": "Your clue text here",
-  "answer": "The correct answer"
+  "answer": "The correct answer",
+  "definition": "Optional definition hint", <!-- Changed from wordplay -->
+  "fodder": "Optional fodder hint",
+  "indicators": ["Optional", "indicator", "list"]
 }</pre>
 
                 <h4>Example:</h4>
@@ -309,7 +392,10 @@ if (isset($_GET['data'])) {
                 // Create example
                 $exampleData = [
                     "clue" => "I am tall when I'm young and short when I'm old. What am I?",
-                    "answer" => "candle"
+                    "answer" => "candle",
+                    "definition" => "A source of light (e.g., for a candle)", // Changed from wordplay
+                    "fodder" => "The material that burns.",
+                    "indicators" => ["tall", "young", "short", "old"]
                 ];
                 $exampleJson = json_encode($exampleData);
                 $exampleBase64 = base64_encode($exampleJson);
@@ -383,6 +469,35 @@ if (isset($_GET['data'])) {
                     }
                 }
             });
+        }
+
+        // JavaScript for the Hint buttons
+        function showHint(type) {
+            const confirmHint = confirm("Are you sure you want to reveal this hint?");
+            if (confirmHint) {
+                let hintElement;
+                let buttonElement;
+
+                if (type === 'definition') { // Changed from wordplay
+                    hintElement = document.getElementById('definitionHint'); // Changed from wordplay
+                    buttonElement = document.getElementById('showDefinitionBtn'); // Changed from wordplay
+                } else if (type === 'fodder') {
+                    hintElement = document.getElementById('fodderHint');
+                    buttonElement = document.getElementById('showFodderBtn');
+                } else if (type === 'indicators') {
+                    hintElement = document.getElementById('indicatorsHint');
+                    buttonElement = document.getElementById('showIndicatorsBtn');
+                }
+
+                if (hintElement) {
+                    hintElement.classList.remove('hidden');
+                    if (buttonElement) {
+                        buttonElement.disabled = true;
+                        buttonElement.style.opacity = '0.7'; // Visual cue for disabled
+                        buttonElement.style.cursor = 'not-allowed';
+                    }
+                }
+            }
         }
     </script>
 </body>
