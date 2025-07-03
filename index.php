@@ -12,7 +12,7 @@ $showResult = false;
 $triggerFlash = false; // Flag to trigger the flash effect
 
 // Initialize optional fields
-$definition = ''; // Changed from wordplay
+$definition = '';
 $fodder = '';
 $indicators = [];
 
@@ -42,7 +42,7 @@ if (isset($_GET['data'])) {
         $correctAnswer = $gameData['answer'];
 
         // Retrieve optional fields
-        $definition = isset($gameData['definition']) ? htmlspecialchars($gameData['definition']) : ''; // Changed from wordplay
+        $definition = isset($gameData['definition']) ? htmlspecialchars($gameData['definition']) : '';
         $fodder = isset($gameData['fodder']) ? htmlspecialchars($gameData['fodder']) : '';
         // Ensure indicators is an array, even if empty
         $indicators = isset($gameData['indicators']) && is_array($gameData['indicators']) ? $gameData['indicators'] : [];
@@ -55,11 +55,35 @@ if (isset($_GET['data'])) {
         if (!isset($_SESSION['games'][$gameId])) {
             $_SESSION['games'][$gameId] = [
                 'attempts' => [],
-                'solved' => false
+                'solved' => false,
+                'solved_by_reveal' => false, // Flag to indicate if solved by revealing
+                'revealed_hints' => [] // Array to store revealed hint types
             ];
         }
 
         $currentGame = &$_SESSION['games'][$gameId];
+
+        // Handle AJAX request to reveal a hint
+        if (isset($_POST['action']) && $_POST['action'] === 'reveal_hint' && isset($_POST['hint_type'])) {
+            $hintType = $_POST['hint_type'];
+            if (!in_array($hintType, $currentGame['revealed_hints'])) {
+                $currentGame['revealed_hints'][] = $hintType;
+            }
+            // Send a success response (important for fetch API)
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'success']);
+            exit; // Terminate script after AJAX response
+        }
+
+        // Handle AJAX request to reveal answer
+        if (isset($_POST['action']) && $_POST['action'] === 'reveal_answer') {
+            $currentGame['solved'] = true; // Mark game as solved
+            $currentGame['solved_by_reveal'] = true; // Set this flag
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'success', 'answer' => $correctAnswer]); // Send answer back for display if needed
+            exit;
+        }
+
 
         // Check if user submitted an answer
         $userAnswer = isset($_POST['user_answer']) ? trim($_POST['user_answer']) : '';
@@ -78,13 +102,14 @@ if (isset($_GET['data'])) {
 
             if ($isCorrect) {
                 $currentGame['solved'] = true;
+                $currentGame['solved_by_reveal'] = false; // Ensure this is false if guessed
             } else {
                  // Trigger the flash effect on incorrect guess
                 $triggerFlash = true;
             }
         }
 
-        // Reset game if requested
+        // Reset game if requested (This block is now unused as the button is removed, but the logic remains)
         if (isset($_POST['reset_game'])) {
             unset($_SESSION['games'][$gameId]);
             // Redirect to clear POST data and session state cleanly
@@ -175,6 +200,12 @@ if (isset($_GET['data'])) {
             color: #155724;
             border: 1px solid #c3e6cb;
         }
+        /* NEW: Style for revealed answer */
+        .revealed-answer {
+            background-color: #f8d7da; /* Red background */
+            color: #721c24; /* Darker red text */
+            border: 1px solid #f5c6cb;
+        }
         .incorrect {
             background-color: #f8d7da;
             color: #721c24;
@@ -211,7 +242,7 @@ if (isset($_GET['data'])) {
             text-align: center;
             padding: 20px;
         }
-        .game-over input, .game-over button:not(#shareButton):not([name="reset_game"]) { /* Disable input and submit button */
+        .game-over input, .game-over button:not(#shareButton) { /* Disable input and submit button, but not share button */
             opacity: 0.5;
             pointer-events: none;
         }
@@ -300,44 +331,57 @@ if (isset($_GET['data'])) {
 
             <?php
             // Check if any optional hints exist to display the section
-            if (!empty($definition) || !empty($fodder) || !empty($indicators)): // Changed from wordplay
+            if (!empty($definition) || !empty($fodder) || !empty($indicators)):
             ?>
-            <div class="hints-section">
+            <div class="hints-section" id="hintsSection">
                 <h3>💡 Hints (Optional)</h3>
-                <?php if (!empty($definition)): // Changed from wordplay ?>
-                    <button type="button" class="hint-button" id="showDefinitionBtn" onclick="showHint('definition')">Show Definition</button> <!-- Changed from wordplay -->
-                    <div id="definitionHint" class="hint-display hidden"> <!-- Changed from wordplay -->
-                        <p><strong>Definition:</strong> <?php echo $definition; ?></p> <!-- Changed from wordplay -->
+                <?php if (!empty($definition)): ?>
+                    <button type="button" class="hint-button" id="showDefinitionBtn" onclick="showHint('definition')" <?php echo in_array('definition', $currentGame['revealed_hints']) ? 'disabled' : ''; ?>>Show Definition</button>
+                    <div id="definitionHint" class="hint-display <?php echo in_array('definition', $currentGame['revealed_hints']) ? '' : 'hidden'; ?>">
+                        <p><strong>Definition:</strong> <?php echo $definition; ?></p>
                     </div>
                 <?php endif; ?>
 
                 <?php if (!empty($fodder)): ?>
-                    <button type="button" class="hint-button" id="showFodderBtn" onclick="showHint('fodder')">Show Fodder</button>
-                    <div id="fodderHint" class="hint-display hidden">
+                    <button type="button" class="hint-button" id="showFodderBtn" onclick="showHint('fodder')" <?php echo in_array('fodder', $currentGame['revealed_hints']) ? 'disabled' : ''; ?>>Show Fodder</button>
+                    <div id="fodderHint" class="hint-display <?php echo in_array('fodder', $currentGame['revealed_hints']) ? '' : 'hidden'; ?>">
                         <p><strong>Fodder:</strong> <?php echo $fodder; ?></p>
                     </div>
                 <?php endif; ?>
 
                 <?php if (!empty($indicators)): ?>
-                    <button type="button" class="hint-button" id="showIndicatorsBtn" onclick="showHint('indicators')">Show Indicators</button>
-                    <div id="indicatorsHint" class="hint-display hidden">
+                    <button type="button" class="hint-button" id="showIndicatorsBtn" onclick="showHint('indicators')" <?php echo in_array('indicators', $currentGame['revealed_hints']) ? 'disabled' : ''; ?>>Show Indicators</button>
+                    <div id="indicatorsHint" class="hint-display <?php echo in_array('indicators', $currentGame['revealed_hints']) ? '' : 'hidden'; ?>">
                         <p><strong>Indicators:</strong> <?php echo htmlspecialchars(implode(', ', $indicators)); ?></p>
                     </div>
                 <?php endif; ?>
             </div>
             <?php endif; ?>
 
+            <?php if (!$currentGame['solved']): // Show reveal button only if not solved ?>
+                <div class="form-group" style="text-align: center; margin-top: 20px;">
+                    <button type="button" id="revealAnswerBtn" class="hint-button" style="background-color: #dc3545;">Reveal Answer</button>
+                </div>
+            <?php endif; ?>
 
             <?php if ($currentGame['solved']): ?>
-                <div class="result correct game-over">
-                    <h3>🎉 Congratulations!</h3>
-                    <p>You solved it in <?php echo count($currentGame['attempts']); ?> attempt<?php echo count($currentGame['attempts']) > 1 ? 's' : ''; ?>!</p>
+                <?php
+                $resultClass = $currentGame['solved_by_reveal'] ? 'revealed-answer' : 'correct';
+                ?>
+                <div class="result <?php echo $resultClass; ?> game-over">
+                    <?php if ($currentGame['solved_by_reveal']): ?>
+                        <h3>The Answer Was Revealed!</h3>
+                    <?php else: ?>
+                        <h3>🎉 Congratulations!</h3>
+                        <p>You solved it in <?php echo count($currentGame['attempts']); ?> attempt<?php echo count($currentGame['attempts']) > 1 ? 's' : ''; ?>!</p>
+                    <?php endif; ?>
+                    <p>The answer was: <strong><?php echo $correctAnswer; ?></strong></p> <!-- Display the correct answer -->
 
-                    <button type="button" id="shareButton" class="secondary-btn">📋 Share Clue</button> <!-- Share Button -->
+                    <?php if (!$currentGame['solved_by_reveal']): // Only show share button if solved by guessing ?>
+                        <button type="button" id="shareButton" class="secondary-btn">📋 Share Clue</button> <!-- Share Button -->
+                    <?php endif; ?>
 
-                    <form method="POST" style="display: inline-block; margin-left: 10px;"> <!-- Align buttons -->
-                        <button type="submit" name="reset_game" style="background-color: #007bff;">🔄 Play Again</button>
-                    </form>
+                    <!-- Removed the "Play Again" button and its surrounding form -->
 
                     <div id="shareSuccess" class="success-message hidden">
                          Link copied to clipboard! <!-- Message updated by JS -->
@@ -382,7 +426,7 @@ if (isset($_GET['data'])) {
                 <pre>{
   "clue": "Your clue text here",
   "answer": "The correct answer",
-  "definition": "Optional definition hint", <!-- Changed from wordplay -->
+  "definition": "Optional definition hint",
   "fodder": "Optional fodder hint",
   "indicators": ["Optional", "indicator", "list"]
 }</pre>
@@ -393,7 +437,7 @@ if (isset($_GET['data'])) {
                 $exampleData = [
                     "clue" => "I am tall when I'm young and short when I'm old. What am I?",
                     "answer" => "candle",
-                    "definition" => "A source of light (e.g., for a candle)", // Changed from wordplay
+                    "definition" => "A source of light (e.g., for a candle)",
                     "fodder" => "The material that burns.",
                     "indicators" => ["tall", "young", "short", "old"]
                 ];
@@ -407,6 +451,9 @@ if (isset($_GET['data'])) {
     </div>
 
     <script>
+        // Pass revealed hints from PHP to JavaScript
+        const revealedHints = <?php echo json_encode($currentGame['revealed_hints'] ?? []); ?>;
+
         // JavaScript for the red flash effect
         <?php if ($triggerFlash): ?>
         document.body.classList.add('flash-red');
@@ -420,10 +467,20 @@ if (isset($_GET['data'])) {
         const clueTextElement = document.getElementById('theClueText');
         const shareSuccessMessage = document.getElementById('shareSuccess');
 
+        // Only attach listener if shareButton exists (i.e., not solved by reveal)
         if (shareButton && clueTextElement) {
             shareButton.addEventListener('click', () => {
                 const clue = clueTextElement.textContent;
-                const textToCopy = clue + ' ✅'; // Clue + green checkmark
+                
+                // Get hint count directly from the JavaScript variable populated by PHP
+                const hintsUsedCount = revealedHints.length;
+
+                let hintText = ''; // Initialize to empty string
+                if (hintsUsedCount > 0) { // Only add text if hints were actually used
+                    hintText = ` (${hintsUsedCount} hint${hintsUsedCount === 1 ? '' : 's'} used)`;
+                }
+
+                const textToCopy = clue + ' ✅' + hintText; // Appends the hint count to the share text
 
                 // Use the Clipboard API
                 if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -462,7 +519,6 @@ if (isset($_GET['data'])) {
                     } catch (err) {
                          console.error('Fallback copy failed: ', err);
                          shareSuccessMessage.textContent = '❌ Failed to copy clue.';
-                         shareSuccessMessage.classList.remove('hidden');
                          setTimeout(() => {
                              shareSuccessMessage.classList.add('hidden');
                          }, 3000);
@@ -475,29 +531,84 @@ if (isset($_GET['data'])) {
         function showHint(type) {
             const confirmHint = confirm("Are you sure you want to reveal this hint?");
             if (confirmHint) {
-                let hintElement;
-                let buttonElement;
+                // Send an AJAX request to record the hint in the session
+                fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `action=reveal_hint&hint_type=${type}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Only update DOM if session update was successful
+                        let hintElement;
+                        let buttonElement;
 
-                if (type === 'definition') { // Changed from wordplay
-                    hintElement = document.getElementById('definitionHint'); // Changed from wordplay
-                    buttonElement = document.getElementById('showDefinitionBtn'); // Changed from wordplay
-                } else if (type === 'fodder') {
-                    hintElement = document.getElementById('fodderHint');
-                    buttonElement = document.getElementById('showFodderBtn');
-                } else if (type === 'indicators') {
-                    hintElement = document.getElementById('indicatorsHint');
-                    buttonElement = document.getElementById('showIndicatorsBtn');
-                }
+                        if (type === 'definition') {
+                            hintElement = document.getElementById('definitionHint');
+                            buttonElement = document.getElementById('showDefinitionBtn');
+                        } else if (type === 'fodder') {
+                            hintElement = document.getElementById('fodderHint');
+                            buttonElement = document.getElementById('showFodderBtn');
+                        } else if (type === 'indicators') {
+                            hintElement = document.getElementById('indicatorsHint');
+                            buttonElement = document.getElementById('showIndicatorsBtn');
+                        }
 
-                if (hintElement) {
-                    hintElement.classList.remove('hidden');
-                    if (buttonElement) {
-                        buttonElement.disabled = true;
-                        buttonElement.style.opacity = '0.7'; // Visual cue for disabled
-                        buttonElement.style.cursor = 'not-allowed';
+                        if (hintElement) {
+                            hintElement.classList.remove('hidden');
+                            if (buttonElement) {
+                                buttonElement.disabled = true;
+                                buttonElement.style.opacity = '0.7';
+                                buttonElement.style.cursor = 'not-allowed';
+                            }
+                            // Add the hint type to the client-side revealedHints array
+                            if (!revealedHints.includes(type)) {
+                                revealedHints.push(type);
+                            }
+                        }
+                    } else {
+                        alert('Failed to record hint. Please try again.');
                     }
-                }
+                })
+                .catch(error => {
+                    console.error('Error revealing hint:', error);
+                    alert('An error occurred while revealing the hint.');
+                });
             }
+        }
+
+        // JavaScript for Reveal Answer button
+        const revealAnswerBtn = document.getElementById('revealAnswerBtn');
+        if (revealAnswerBtn) {
+            revealAnswerBtn.addEventListener('click', () => {
+                const confirmReveal = confirm("Are you sure you want to reveal the answer?");
+                if (confirmReveal) {
+                    fetch(window.location.href, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: 'action=reveal_answer'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Reload the page to reflect the solved state and display the answer
+                            // This ensures all PHP-rendered elements update correctly.
+                            window.location.reload();
+                        } else {
+                            alert('Failed to reveal answer. Please try again.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error revealing answer:', error);
+                        alert('An error occurred while revealing the answer.');
+                    });
+                }
+            });
         }
     </script>
 </body>
