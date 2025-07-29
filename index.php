@@ -296,6 +296,12 @@ if (isset($_GET['data'])) {
         .hint-display p {
             margin: 0;
         }
+        .char-counter {
+            font-size: 0.8em;
+            color: #666;
+            margin-left: 10px;
+            font-weight: normal; /* Override bold from label */
+        }
     </style>
 </head>
 <body>
@@ -381,8 +387,6 @@ if (isset($_GET['data'])) {
                         <button type="button" id="shareButton" class="secondary-btn">📋 Share Clue</button> <!-- Share Button -->
                     <?php endif; ?>
 
-                    <!-- Removed the "Play Again" button and its surrounding form -->
-
                     <div id="shareSuccess" class="success-message hidden">
                          Link copied to clipboard! <!-- Message updated by JS -->
                     </div>
@@ -393,7 +397,7 @@ if (isset($_GET['data'])) {
             <div class="<?php echo $currentGame['solved'] ? 'game-over' : ''; ?>">
                 <form method="POST">
                     <div class="form-group">
-                        <label for="user_answer">Your Answer:</label>
+                        <label for="user_answer">Your Answer: <span id="charCount" class="char-counter">(0 characters)</span></label>
                         <input type="text"
                                id="user_answer"
                                name="user_answer"
@@ -610,6 +614,33 @@ if (isset($_GET['data'])) {
                 }
             });
         }
+
+        // Character Counter Logic
+        const userAnswerInput = document.getElementById('user_answer');
+        const charCountSpan = document.getElementById('charCount');
+
+        if (userAnswerInput && charCountSpan) {
+            function updateCharCount() {
+                const count = userAnswerInput.value.length;
+                charCountSpan.textContent = `(${count} character${count === 1 ? '' : 's'})`;
+            }
+
+            // Update count on input
+            userAnswerInput.addEventListener('input', updateCharCount);
+
+            // Set initial count on page load
+            updateCharCount();
+        }
+
+        // Auto-focus on the answer textbox when the page loads
+        // Only if the game is not already solved
+        window.onload = function() {
+            const userAnswerInput = document.getElementById('user_answer');
+            // Check if the input exists and is not disabled (i.e., game is not solved)
+            if (userAnswerInput && !userAnswerInput.disabled) {
+                userAnswerInput.focus();
+            }
+        };
     </script>
 </body>
 </html>
